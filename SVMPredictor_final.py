@@ -123,6 +123,7 @@ nData = testData;
 for i in np.arange(0,sample_len):
     prediction[i] = clf.predict(nData.transpose());
     #nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
+    #nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,]));
     nData = np.concatenate((testData[i+1:wLen:,],prediction[0:i+1,:]));
 score = prediction[1,:]
 accuracy = calculateAccuracy(score, totalPwrLvl, numberOfSamples)
