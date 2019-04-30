@@ -113,7 +113,7 @@ saveARPData(totalPwrLvl)
 totalPwrLvl = load_data("svmDataSet.csv")
 filename="linearSVRModel_500s_150000itr.sav"
 prediction = predictor(filename,totalPwrLvl)
-plotSVM(totalPwrLvl,prediction,numberOfSamples)
+
 score_accuracy =1000
 totalPwr_score = np.zeros((numberOfSamples));
 for i in range(prediction_width):
