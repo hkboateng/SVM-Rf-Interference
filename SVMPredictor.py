@@ -15,17 +15,14 @@ import csv
 from sklearn.metrics import mean_squared_error
 import pickle
 
-numberOfSamples = 500
-lambda1 = 0.2;
-lambda2 = 0.2;
-dLen = 100 #length of the energy detector
-wLen = 5*dLen; 
+numberOfSamples = 5000
+lambda1 = 0.9;
+lambda2 = 0.9;
+sample_len = 5
+max_iteration = 145000
 
 class SVMPredictor:
-    actualTotalSamples = 0;
-    N_train=0
 
-    N_test =0
     def getTrainLabl(self, dataSource,trainVec,wLen,trainLen ):
         counter = 0;
         for i in np.arange(wLen,trainLen-1):
@@ -47,11 +44,16 @@ class SVMPredictor:
     
     def predictor(self,numberOfSamples, datas):
         
-        #N = numberOfSamples
+        N = numberOfSamples
+        dLen = 100 #length of the energy detector
+        N_train = dLen*N//2-dLen+1; #training data length
+        #Training label ground truth/target
+        wLen = 5*dLen; 
+        N_test = dLen*N//2; #test data length 
+        N = N_train+N_test; #total data length
 
-        N_train = dLen*numberOfSamples//2-dLen+1; #training data length 
-        N_test = dLen*numberOfSamples//2; #test data length 
-
+        
+        #input window length
         trainLbl = np.zeros((1,N_train-wLen));
         
         counter = 0
@@ -70,88 +72,114 @@ class SVMPredictor:
 
         label_reshape = trainLbl.reshape((N_train-wLen))
         train_reshape = trainData.transpose()
-        clf = svm.LinearSVR(epsilon=10e-90, C=10e6, max_iter=40000, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-5).fit(train_reshape,label_reshape)
-        fSteps = dLen; #tracks number of future steps to predict
-        model_name = 'linearSVRModel_500s_30000itr.sav'
-        with open(model_name,'wb') as model_file:
-            pickle.dump(clf,model_file)
-            
-        predicted = np.zeros((fSteps, N_test-wLen));
- 
+
         nData = testData;
-        for i in np.arange(0,prediction_width):
+
+
+       #print(grid.best_params_)
+        clf = svm.LinearSVR(epsilon=10e-90, C=10e6, max_iter=max_iteration, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6).fit(train_reshape,label_reshape)
+        fSteps = dLen; #tracks number of future steps to predict
+
+        predicted = np.zeros((fSteps, N_test-wLen));
+        filename="models/linearsvr_155kitr_5000s_lambda9_v2.sav"
+        pickleDmp = open(filename,'wb')
+        pickle.dump(clf,pickleDmp)
+
+        for i in np.arange(0,sample_len):
             predicted[i] = clf.predict(nData.transpose());
-            #nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:])); #  - Original One-step ahead prediction
-            #nData = np.concatenate((testData[i+1:wLen:,],predicted[0:i+1,:])); # -Using predicted datapoint as the last datapoint to use in next prediction
-            nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,])); # - Using predicted datapoint as the initial datapoint to use in next prediction
+            #nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
+            nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,]));
 
-  
-        return predicted,nData
+        predSet = np.zeros((fSteps, N_test-wLen));
+        setCnt = 0;
+
+        for i in np.arange(0,N_test-wLen):
+            predSet[setCnt,i-setCnt:i-setCnt+fSteps] = predicted[:,i].transpose()
+            if (setCnt+1)==fSteps:
+                #obsSample[i-setCnt] = 1;
+                setCnt = 0;
+            else:
+                setCnt = setCnt + 1;
+        return predicted
     
-    def plotSVM(self, totalPwrLvl, score,sampleSize):
+    def chooseBestPredictionScore(self,prediction,formattedData):
+        errorScore = 999999 #Initial error score
 
-        N_train = dLen*sampleSize//2-dLen+1; #training data length - 14901
-        N_test = dLen*sampleSize//2; #test data length - 15000
-        totalSampleSize = N_train+N_test;
+        for i in np.arange(0,sample_len):
+            score = prediction[i,:]
+            predictedErrScore = svmp.calculateAccuracy(score, formattedData, numberOfSamples)
+            if predictedErrScore < errorScore:
+                errorScore = predictedErrScore;
+                score = prediction[i,:]
+        print("Error Rate: *",predictedErrScore);
+        return score
+
+    def plotSVM(self, totalPwrLvl, prediction,sampleSize):
+        dLen = 100 #length of the energy detector
+        N = sampleSize
+        N_train = dLen*N//2-dLen+1; #training data length - 14901
+        #Training label ground truth/target
+        wLen = 5*dLen; 
+        N_test = dLen*N//2; #test data length - 15000
+        N = N_train+N_test;
         
-        totalPwr_score = np.zeros((totalSampleSize));
+        score = svmp.chooseBestPredictionScore(prediction,totalPwrLvl)
+        
+        totalPwr_score = np.zeros((N));
         prediction_score = np.zeros((N_test-wLen));
         
         
-        totalPwr_score = 10*np.log10(np.abs(np.real(totalPwrLvl[0,N_train+wLen:totalSampleSize])))-30
+        totalPwr_score = 10*np.log10(np.abs(np.real(totalPwrLvl[0,N_train+wLen:N])))-30
         
         prediction_score = 10*np.log10(np.abs(score))-30
         subplot_range = np.array([i for i in np.arange(N_test-wLen)]);
         
-        plt.figure(figsize=(10,10))
+        fig = plt.figure(figsize=(20,10))
         
         plt.plot(subplot_range,totalPwr_score,subplot_range,prediction_score)
-        plt.title('one-step ahead prediction')
+        plt.title('One-step ahead prediction')
         plt.legend(['Input Signal','Prediction'])
         plt.xlabel('Samples')
         plt.ylabel('Magnitude (dBm)')
         plt.show()
 
     def generatereqByLambda(self,lambda1, lambda2,numberOfSamples):
-        lambda_range=0.1
+        lambda_range=0.01
+        lambda_length = len(np.arange(lambda_range,lambda1,lambda_range)) # Get the length of the lambda range
+        color_range = np.zeros(lambda_length*lambda_length)
+
+        a = 0;
         
-        lambda1_length = len(np.arange(lambda_range,lambda1,lambda_range)) # Get the length of the lambda 1 range
-        lambda2_length = len(np.arange(lambda_range,lambda2,lambda_range))         
+        x_range=np.zeros(lambda_length*lambda_length)
+        y_range=np.zeros(lambda_length*lambda_length)
+        
+        fig = plt.figure(figsize=(30,30))
 
-        index = 0;
-        color_range = np.zeros(lambda1_length*lambda2_length)
-        fig = plt.figure(figsize=(20,10))
-        x_range = np.zeros(lambda1_length*lambda2_length)
-        y_range = np.zeros(lambda1_length*lambda2_length)
-        for i in np.arange(lambda1,lambda_range,-lambda_range):
-
-            for j in np.arange(lambda2,lambda_range, -lambda_range):
-
+        for i in np.arange(lambda_range,lambda1,lambda_range):
+            for j in np.arange(lambda_range,lambda2, lambda_range):
+                
                 totalPwrLvl = arp.generateFreqEnergy(arp,i,j,numberOfSamples)
                 powerData = pd.DataFrame(np.array(totalPwrLvl).reshape(-1,1),totalPwrLvl)
                 powerData = powerData[powerData.columns[0:]].values
                 powerLvlLambda = powerData.transpose()
                 
                 prediction = svmp.predictor(numberOfSamples,powerLvlLambda)
-
+                
                 score = prediction[1,:]
-                
                 accuracy = svmp.calculateAccuracy(score, powerLvlLambda, numberOfSamples)
-                print("Lambda 1",i,"lambda2",j," -: Error Rate: ",accuracy);
 
-                color_range.itemset(index,(accuracy/100))
-                
-                x_range.itemset(index,i);
-                y_range.itemset(index,j);
+                color_range.itemset(a,accuracy/100)
+                x_range.itemset(a,i);
+                y_range.itemset(a,j);
+                a=a+1;
 
-                index = index+1;
-            
-        plt.scatter(x_range,y_range,c=color_range, s=(accuracy)*10,alpha=0.55)
+        plt.scatter(x_range,y_range,c=color_range, s=accuracy*10,alpha=0.55)
         plt.colorbar()
-        fig.savefig("lambda0.8range0.01_300samples.png")
+        fig.savefig("lambda0.99range0.01_300samples.png")
+        return 0;
     
     def saveARPData(self, data):
-        with open(powerLvl_dataSource, 'w') as arp_dataset:
+        with open("svmDataSet_01.csv", 'w') as arp_dataset:
             wr = csv.writer(arp_dataset, quoting=csv.QUOTE_NONNUMERIC)
             wr.writerows([[lst] for  lst in data])
     
@@ -160,28 +188,29 @@ class SVMPredictor:
         data = data[data.columns[0:]].values
         return data.transpose()
     
-
     def calculateAccuracy(self, score, powerLvl,sampleSize):
-        N_train = dLen*sampleSize//2-dLen+1; #training data length 
-        N_test = dLen*sampleSize//2; #test data length
-        sampleSize = N_train+N_test;
+        dLen = 100 #length of the energy detector
+        N = sampleSize
+        N_train = dLen*N//2-dLen+1; #training data length - 14901
+        #Training label ground truth/target
+        wLen = 5*dLen; 
+        N_test = dLen*N//2; #test data length - 15000
+        N = N_train+N_test;
         
-        totalPwr = 10*np.log10(np.abs(np.real(powerLvl[0,N_train+wLen:sampleSize])))-30
+        totalPwr = 10*np.log10(np.abs(np.real(powerLvl[0,N_train+wLen:N])))-30
         prediction = 10*np.log10(np.abs(score))-30
         rmse = mean_squared_error(prediction,totalPwr)
         return rmse;
-
-prediction_width = 50   
-sample_len = 5
+    
 svmp = SVMPredictor()
-powerLvl_dataSource = "svmDataSet.csv"
+
 totalPwrLvl = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples)
 svmp.saveARPData(totalPwrLvl)
-totalPwrLvl = svmp.load_data(powerLvl_dataSource)
-prediction,text_X = svmp.predictor(numberOfSamples,totalPwrLvl)
-
-for i in range(prediction_width):
-    accuracy = svmp.calculateAccuracy(prediction[i,:], totalPwrLvl, numberOfSamples)
-    print("Error Rate: ",accuracy);
-svmp.plotSVM(totalPwrLvl,prediction[sample_len-1,:],numberOfSamples)
+totalPwrLvl = svmp.load_data("svmDataSet_01.csv")
 #svmp.generatereqByLambda(lambda1,lambda2,numberOfSamples)
+prediction = svmp.predictor(numberOfSamples,totalPwrLvl)
+for i in np.arange(0,sample_len):
+    score = prediction[i,:]
+    accuracy = svmp.calculateAccuracy(score, totalPwrLvl, numberOfSamples)
+    print("Error Rate: ",accuracy);
+svmp.plotSVM(totalPwrLvl,prediction,numberOfSamples)
