@@ -23,28 +23,29 @@ from scipy import stats,special
 
 class ARPSimulator:
 
-    def plotSVM(self, totalPwrLvl, sampleSize):
+    def plotSVM(self, totalPwrLvl, sampleSize,thresh=1.232634787404084e-06):
         dLen = 100 #length of the energy detector
         N = sampleSize
         N_train = dLen*N//2-dLen+1; #training data length - 14901
         #Training label ground truth/target
         wLen = 5*dLen; 
         N_test = dLen*N//2; #test data length - 15000
-        N = dLen*N
+        N = N_train+N_test
         
 
         totalPwr_score = np.zeros((N));
-        
+        print(thresh)
         
         totalPwr_score = 10*np.log10(np.abs(np.real(totalPwrLvl)))-30
-
+        threah_score = 10*np.log10(thresh*np.ones((np.size(totalPwrLvl))))-30
         subplot_range = np.array([i for i in np.arange(N)]);
         
-        fig = plt.figure(figsize=(15,10))
-        
+        fig = plt.figure(figsize=(10,25))
         plt.plot(subplot_range,totalPwr_score)
+        plt.plot(subplot_range,threah_score)
+        
         plt.title('One-step ahead prediction')
-        plt.legend(['Input Signal','Prediction'])
+        plt.legend(['Input Signal','Threshold'])
         plt.xlabel('Samples')
         plt.ylabel('Magnitude (dBm)')
         plt.show()
@@ -110,7 +111,8 @@ class ARPSimulator:
                 elif downDist=="erl":
                     period = m.ceil(rnd.gammavariate(kParam2,1/lambda2)) #assumes k=2
                 elif downDist=="lnorm":
-                    period = m.ceil(rnd.lognormvariate(lambda2,var2)) 
+                    period = m.ceil(rnd.lognormvariate(np.log(((1/lambda2)**2)/np.sqrt((1/var2)+(1/lambda2)**2)),np.sqrt(np.log(1/var2)/(((1/lambda2)**2)+1))))
+
                 #period = 10
                 
                 if (totalTime+period) > N: #makes sure total time isn't exceeded
@@ -135,6 +137,7 @@ class ARPSimulator:
         
         #reactive predictor "accuracy/error"
         predicted = occupancy[0:N-1]
+        
         #theoretical accuracy based on lambda parameters
         theoAcc = 1-(2/actual_int-1/N)
         #accuracy based on measured mean interarrival
@@ -164,20 +167,23 @@ class ARPSimulator:
         #Modulates the sine wave with the occupancy state where each state has dLen samples
         occSwitch = np.repeat(occupancy,dLen)
         inputRF = sineWave*occSwitch+noisefloor
-        thresh = noiseVar/np.sqrt(dLen)*special.erfinv(P_fa)+noiseVar; 
+        #thresh = noiseVar/np.sqrt(dLen)*special.erfinv(P_fa)+noiseVar; 
+        thresh = noiseVar/m.sqrt(dLen)*(-norm.ppf(P_fa))+noiseVar
         #calculates total average power over a sliding window
-        totalAvgPwr = np.zeros((dLen*N))
-        totalAvgPwr_cumulants = np.zeros((dLen*N))
-        subplot_range = np.array([i for i in np.arange(dLen*N)]);
+        sample_range = dLen*N-dLen+1
+        totalAvgPwr = np.zeros((sample_range))
+        totalAvgPwr_cumulants = np.zeros((sample_range))
+        trueState = np.zeros((sample_range))
 
-        for i in range(dLen*N):
+        for i in range(sample_range):
             totalAvgPwr_cumulants.itemset(i,stats.kstat(np.abs(inputRF[i:i+dLen-1]),1))
             totalAvgPwr[i] = sum(np.abs(inputRF[i:i+dLen-1])**2)/dLen
+            trueState[i] = int(sum(occSwitch[i:i+dLen]) > 0) 
  
 
-        return totalAvgPwr,totalAvgPwr_cumulants;
+        return totalAvgPwr,totalAvgPwr_cumulants,thresh;
 
 arp = ARPSimulator()
 numOfSamples =1000
-totalAvgPwr,totalAvgPwr_cumulants = arp.generateFreqEnergy(0.8,0.8,numOfSamples)
-arp.plotSVM(totalAvgPwr_cumulants,numOfSamples)
+totalAvgPwr,totalAvgPwr_cumulants,thresh = arp.generateFreqEnergy(0.8,0.8,numOfSamples)
+arp.plotSVM(totalAvgPwr,numOfSamples,thresh)

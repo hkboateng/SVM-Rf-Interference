@@ -13,20 +13,21 @@ from sklearn.metrics import mean_squared_error
 import csv
 from ARPSimulator import ARPSimulator as arp
 import sklearn.svm as svm
+from sklearn.preprocessing import Normalizer
 
-numberOfSamples = 5000
+numberOfSamples = 1000
 N = numberOfSamples
 dLen = 100 #length of the energy detector
 N_train = dLen*N//2-dLen+1; #training data length
-lambda1 = 0.99;
-lambda2 = 0.99;
+lambda1 = 0.2;
+lambda2 = 0.2;
 wLen = 5*dLen;
 N_test = dLen*N//2; #test data length
 N = N_train+N_test; #total data length
 sample_len = 10
 max_iteration = 250000
 fSteps = dLen; #tracks number of future steps to predict
-typeOfOperation = 2 #if 1 then running just one lambda value; 2 running a performance analysis of a range of lambda values
+typeOfOperation = 1 #if 1 then running just one lambda value; 2 running a performance analysis of a range of lambda values
 
 def load_data(fileName):
     data = pd.read_csv(fileName, header=None,sep='\n')
@@ -34,7 +35,6 @@ def load_data(fileName):
     return data.transpose()
 
 def plotSVM(totalPwrLvl, prediction,sampleSize):
-    dLen = 100 #length of the energy detector
     
     score = prediction[1,:]
     
@@ -63,8 +63,8 @@ def calculateAccuracy(score, powerLvl,sampleSize):
     rmse = mean_squared_error(prediction,totalPwr)
     return rmse;  
   
-def saveARPData(data):
-    with open("svmDataSet_01.csv", 'w') as arp_dataset:
+def saveARPData(fileName,data):
+    with open(fileName, 'w') as arp_dataset:
         wr = csv.writer(arp_dataset, quoting=csv.QUOTE_NONNUMERIC)
         wr.writerows([[lst] for  lst in data])
 
@@ -144,7 +144,7 @@ def predictor(formattedData):
     train_reshape = trainData.transpose()
     nData = testData;
 
-    clf = svm.LinearSVR(epsilon=10e-89, C=100000000, max_iter=250000, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6).fit(train_reshape,label_reshape)
+    clf = svm.LinearSVR(epsilon=10e-9, C=10e6, max_iter=500, random_state=0,loss='squared_epsilon_insensitive',tol=10e-6).fit(train_reshape,label_reshape)
     fSteps = dLen; #tracks number of future steps to predict
 
     predicted = np.zeros((fSteps, N_test-wLen));
@@ -166,16 +166,22 @@ def predictor(formattedData):
         else:
             setCnt = setCnt + 1;
     return predicted
+
+fileName="svmDataSet_01.csv"
 if typeOfOperation == 2:
     generatereqByLambda(lambda1,lambda2,numberOfSamples)
 else:
     totalPwrLvl = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples)
-    saveARPData(totalPwrLvl)
+    saveARPData(fileName,totalPwrLvl)
+    formattedData = load_data(fileName)
     trainData = np.zeros((wLen,N_train-wLen));
     testData = np.zeros((wLen,N_test-wLen));
     trainLbl = np.zeros((1,N_train-wLen));
-    formattedData = load_data("svmDataSet_01.csv")
+    #print(formattedData.shape)
     
+#    normalize = Normalizer()
+#    formattedData = normalize.fit_transform(formattedData)
+#    
     trainFeatures = 0;
     for i in np.arange(wLen,N_train-1):
         trainLbl.itemset(trainFeatures,formattedData[0,i]);
@@ -191,7 +197,7 @@ else:
     label_reshape = trainLbl.reshape((N_train-wLen))
     train_reshape = trainData.transpose()
     
-    model_file="models/linearsvr_100kitr_3000s_lambda99_v1.sav"
+    model_file="models/linearsvr_500itr_5000s_lambda99_average_v1.sav"
     model = pickle.load(open(model_file,'rb'));
     nData = testData;
     fSteps = dLen; #tracks number of future steps to predict
@@ -200,7 +206,7 @@ else:
         prediction[i] = model.predict(nData.transpose());
         #nData = np.concatenate((testData[1:wLen:,],prediction[i:i+1,:]));
         nData = np.concatenate((prediction[0:i+1,:],testData[i+1:wLen:,]));# New prediction concatenation
-    
+    plotSVM(formattedData,prediction,numberOfSamples)
     for i in np.arange(0,sample_len):
         score = prediction[i,:]
         accuracy = calculateAccuracy(score, formattedData, numberOfSamples)

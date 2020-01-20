@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.svm as svm
 import pandas as pd
-from ARPSimulator import ARPSimulator as arp
+from ARP import ARPSimulator as arp
 import csv
 from sklearn.metrics import mean_squared_error
 import pickle
@@ -59,7 +59,7 @@ def plotSVM(totalPwrLvl, prediction,sampleSize):
     prediction_score = 10*np.log10(np.abs(score))-30
     subplot_range = np.array([i for i in np.arange(N_test-wLen)]);
     
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(30,30))
     
     plt.plot(subplot_range,totalPwr_score,subplot_range,prediction_score)
     plt.title('one-step ahead prediction')
@@ -68,9 +68,9 @@ def plotSVM(totalPwrLvl, prediction,sampleSize):
     plt.ylabel('Magnitude (dBm)')
     plt.show()
    
-numberOfSamples = 500
-lambda1 = 0.9;
-lambda2 = 0.9;
+numberOfSamples = 1000
+lambda1 = 0.8;
+lambda2 = 0.8;
 dLen = 100 #length of the energy detector
 wLen = 5*dLen; 
 dataSource = "svmDataSet_01.csv"
@@ -85,8 +85,8 @@ sample_len = 5
 #input window length
 trainLbl = np.zeros((1,N_train-wLen));
 
-totalPwrLvl = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples)
-saveARPData(totalPwrLvl)
+totalPwrLvls,totalPwrLvl_cumulants = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples)
+saveARPData(totalPwrLvls)
 totalPwrLvl = load_data(dataSource)
 
 counter = 0
@@ -99,32 +99,32 @@ trainData = np.zeros((wLen,N_train-wLen));
 testData = np.zeros((wLen,N_test-wLen));
 ###### totalAvgPwr is one-dimensional array#####
 ###### trainData in a multi-dimensional array######
-
+for s in np.arange(N_test-wLen):
+    for k in  np.arange(wLen):
+        testData.itemset((k,s),np.real(totalPwrLvl[0,N_train+s+k]))
 for s in np.arange(counter):
     for k in  np.arange(wLen-1):
         trainData.itemset((k,s),np.real(totalPwrLvl[0,s+k]))
                 
-for s in np.arange(N_test-wLen):
-    for k in  np.arange(wLen):
-        testData.itemset((k,s),np.real(totalPwrLvl[0,trainData+s+k]))
+
                 
 label_reshape = trainLbl.reshape((N_train-wLen))
 train_reshape = trainData.transpose()
-
-clf = svm.LinearSVR(epsilon=10e-90, C=10e6, max_iter=10000, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-5).fit(train_reshape,label_reshape)
+clf = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=105000).fit(train_reshape,label_reshape)
+#clf = svm.LinearSVR(epsilon=10e-90, C=10e6, max_iter=10000, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-5).fit(train_reshape,label_reshape)
 fSteps = dLen; #tracks number of future steps to predict
-model_name = 'linearSVRModel_500s_150000itr.sav'
-with open(model_name,'wb') as model_file:
-    pickle.dump(clf,model_file)
+#model_name = 'linearSVRModel_500s_150000itr.sav'
+#with open(model_name,'wb') as model_file:
+#    pickle.dump(clf,model_file)
     
 prediction = np.zeros((fSteps, N_test-wLen));
  
 nData = testData;
 for i in np.arange(0,sample_len):
     prediction[i] = clf.predict(nData.transpose());
-    #nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
+    nData = np.concatenate((testData[1:wLen:,],prediction[i:i+1,:]));
     #nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,]));
-    nData = np.concatenate((testData[i+1:wLen:,],prediction[0:i+1,:]));
+    #nData = np.concatenate((testData[i+1:wLen:,],prediction[0:i+1,:]));
 score = prediction[1,:]
 accuracy = calculateAccuracy(score, totalPwrLvl, numberOfSamples)
 print("Error Rate: ",accuracy);

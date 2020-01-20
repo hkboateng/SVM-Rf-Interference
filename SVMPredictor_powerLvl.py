@@ -13,12 +13,12 @@ from ARP import ARPSimulator as arp
 import csv
 from sklearn.metrics import mean_squared_error
 import pickle
-from sklearn.preprocessing import Normalizer
+from sklearn.preprocessing import Normalizer,StandardScaler
 from matplotlib.ticker import FormatStrFormatter
 #numberOfSamples = 500
 
 sample_len = 5
-max_iteration = -1
+max_iteration = 500
 
 class SVMPredictor:
 
@@ -41,7 +41,7 @@ class SVMPredictor:
                 trainData.itemset((k,s),np.real(dataSource[0,s+k]))
         return trainData;
     
-    def predictor(self,numberOfSamples, datas):
+    def predictor(self,numberOfSamples, datas,maxt_iter=max_iteration):
         
         N = numberOfSamples
         dLen = 100 #length of the energy detector
@@ -76,7 +76,7 @@ class SVMPredictor:
 
 
        #print(grid.best_params_)
-        clf = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6, dual=True,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=150).fit(train_reshape,label_reshape)
+        clf = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=maxt_iter).fit(train_reshape,label_reshape)
         fSteps = dLen; #tracks number of future steps to predict
 
         predicted = np.zeros((fSteps, N_test-wLen));
@@ -86,9 +86,9 @@ class SVMPredictor:
 
         for i in np.arange(0,sample_len):
             predicted[i] = clf.predict(nData.transpose());
-            #nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
+            nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
             #nData = np.concatenate((predicted[i:i+1,:],testData[1:wLen:,]));
-            nData = np.concatenate((testData[i+1:wLen:,],predicted[0:i+1,:]));
+            #nData = np.concatenate((testData[i+1:wLen:,],predicted[0:i+1,:]));
             #nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,]));
 
         predSet = np.zeros((fSteps, N_test-wLen));
@@ -190,12 +190,13 @@ class SVMPredictor:
         data = data[data.columns[0:]].values
         return data.transpose()
     
-    def plotByPowerLevel(self, powerList,error_scoreList_norm,error_scoreList_cum):
+    def plotByPowerLevel(self, powerList,error_scoreList_norm,error_scoreList_cum,image="test"):
         if len(powerList) == 0 or len(error_scoreList_norm) == 0:
             print("List is empty")
-        caption = "Maximum Iteration: 150 Sample size: "+str(numberOfSamples)           
-        fig = plt.figure(figsize=(10,10))
-        fig.text(.5, .05, caption, ha='center')
+        caption = "Sample size: "+str(numberOfSamples)           
+        plt.rc('font',size=22)
+        fig = plt.figure(figsize=(25,20))
+        #fig.text(.5, .05, caption, ha='center')
         plt.plot(powerList,error_scoreList_norm,'bo-',powerList,error_scoreList_cum,'rs-')
         for s, val in zip(powerList,error_scoreList_norm):
             label = "{:.4f}".format(val)
@@ -209,13 +210,16 @@ class SVMPredictor:
             plt.annotate(label, # this is the text
                  (s,val), # this is the point to label
                  textcoords="offset points", # how to position the text
-                 xytext=(0,10), # distance from text to points (x,y)
+                 xytext=(0,-20), # distance from text to points (x,y)
                  ha='center')            
             #diagram.annotate(val,powerList[s])
+        image_file = image+".png"
+        
         plt.title('One-step ahead prediction')
         plt.legend(['Moving Average','Cumulants - First-order'])
-        plt.xlabel('On/Off State')
-        plt.ylabel("Prediction Error Rate")
+        plt.xlabel('Power Level')
+        plt.ylabel("Prediction - RMSE Rate")
+        fig.savefig(image_file)
         plt.show() 
         
     def calculateAccuracy(self, score, powerLvl,sampleSize):
@@ -234,21 +238,23 @@ class SVMPredictor:
 
 fileName = "svmDataSet.csv"
 fileName_cumulants = "svmDataSet_cumulants.csv"
-sampleList = [500]
+sampleList = np.arange(500,5500,500)
 lambdaList = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-powerLvlList = [-30,-20,-10,0,10]
+powerLvlList = np.arange(-150,0,10)
+#lambdaList = [0.1,0.2,0.3]
+iterList = np.arange(50,550,50)
 error_scoreList = []
 error_scoreList_norm = []
 error_scoreList_cum = []
 error_score_lambda_norm = []
 error_score_lambda_cum = []
+error_score_lambda_scale = []
 numberOfSamples= 1000
 lambda1 = 0.8;
 lambda2 = 0.8;
-
 for power in powerLvlList:
     svmp = SVMPredictor()
-    
+   
     totalPwrLvl,totalPwrLvl_cumulants = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples,power)
     svmp.saveARPData(fileName,totalPwrLvl)
     totalPwrLvl = svmp.load_data(fileName)
@@ -256,18 +262,22 @@ for power in powerLvlList:
     svmp.saveARPData(fileName_cumulants,totalPwrLvl_cumulants)
     totalPwrLvl_cumulants = svmp.load_data(fileName_cumulants)    
     
-    norm = Normalizer(norm='max')
-    norm_cumulants = Normalizer(norm='max')
+    scale = StandardScaler(with_mean=False)
+    norm = Normalizer(norm='l2')
+    norm_cumulants = Normalizer(norm='l2')
     
-    totalPwrLvl_norm = norm.fit_transform(totalPwrLvl)
-    totalPwrLvl_cumulants = norm_cumulants.fit_transform(totalPwrLvl_cumulants)
+#    totalPwrLvl_norm = norm.fit_transform(totalPwrLvl)
+    #totalPwrLvl_cumulants = norm_cumulants.fit_transform(totalPwrLvl_cumulants)
+    totalPwrLvl_scale = norm.fit_transform(totalPwrLvl)
     
-    prediction_norm = svmp.predictor(numberOfSamples,totalPwrLvl_norm)
+#    prediction_norm = svmp.predictor(numberOfSamples,totalPwrLvl_norm,iters)
     #prediction = svmp.predictor(numberOfSamples,totalPwrLvl)
+    prediction_scale = svmp.predictor(numberOfSamples,totalPwrLvl_scale)
     prediction_cumulants = svmp.predictor(numberOfSamples,totalPwrLvl_cumulants)
     
+    accuracy_scale = svmp.calculateAccuracy(prediction_scale[1,:], totalPwrLvl_scale, numberOfSamples)
     #accuracy = svmp.calculateAccuracy(prediction[1,:], totalPwrLvl, numberOfSamples)
-    accuracy_norm = svmp.calculateAccuracy(prediction_norm[1,:], totalPwrLvl_norm, numberOfSamples)
+#    accuracy_norm = svmp.calculateAccuracy(prediction_norm[1,:], totalPwrLvl_norm, numberOfSamples)
     accuracy_cumulants = svmp.calculateAccuracy(prediction_cumulants[1,:], totalPwrLvl_cumulants, numberOfSamples)
 #    for i in np.arange(0,sample_len):
 #        score = prediction_norm[i,:]
@@ -282,10 +292,13 @@ for power in powerLvlList:
 #    error_scoreList.append(accuracy)
 #    error_scoreList_norm.append(accuracy_norm)
 #    error_scoreList_cum.append(accuracy_cumulants)
-    error_score_lambda_norm.append(accuracy_norm)
+#    error_score_lambda_norm.append(accuracy_norm)
+    error_score_lambda_scale.append(accuracy_scale)
     error_score_lambda_cum.append(accuracy_cumulants)
         #svmp.plotSVM(totalPwrLvl,prediction,numberOfSamples)
         #svmp.plotSVM(totalPwrLvl_norm,prediction_norm,numberOfSamples)
         #svmp.plotSVM(totalPwrLvl_cumulants,prediction_cumulants,numberOfSamples)
 #svmp.plotByPowerLevel(powerLvlList,error_scoreList_norm,error_scoreList_cum)
-svmp.plotByPowerLevel(powerLvlList,error_score_lambda_norm,error_score_lambda_cum)
+svmp.plotByPowerLevel(powerLvlList,error_score_lambda_scale,error_score_lambda_cum,"powerLvl")
+
+
