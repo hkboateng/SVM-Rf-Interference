@@ -16,53 +16,47 @@ from scipy.stats import norm
 import numpy as np
 from SVMPredictor import SVM_Predictor as SVMPredictor
 
-def checkOnesAndZeros(trueState_1r,i,isOnes):
-    val = 0
-    once = []
-    zeros = []
-    #trueState_1r = trueState[:,i]
-    once_bool = np.count_nonzero(trueState_1r == 5)
-    for i in np.arange(dLen):
-        pass
-    if once_bool:
-        val = val + 1  
-    return val
-def countReturns(obj1,obj2):
-    counter = 0;
-    shape1=obj1.shape[1]
-    for i in np.arange(shape1):
-        if obj1[0][i] == obj2[0][i]:
-            counter = counter + 1
-    return counter
-def calc_array_obj_test(ambstate, trueState_1r,checkVal):
-    index_range = []
-    test_ambState = ambState == checkVal
-    for g in np.arange(test_ambState.shape[1]):
-        if test_ambState[0][g] == True:
-            index_range.append(g)
-    index_ranges = []
+def countReturns(self,obj1,obj2):
+        counter = 0;
+        shape1=obj1.shape[1]
+        for i in np.arange(shape1):
+            #print(obj1[0][i].astype(int)== obj2[0][i].astype(int))
+            if obj1[0][i] == obj2[0][i]:
+                counter = counter + 1
+        return counter
+    def calc_array_obj_test(self,ambstate, trueState_1r,checkVal):
+        index_range = []
+        test_ambState = ambstate == checkVal
+        for g in np.arange(test_ambState.shape[1]):
+            if test_ambState[0][g] == True:
+                index_range.append(g)
+        index_ranges = []
     
-    for g in np.arange(len(index_range)):
-        ind = index_range[g]
-        index_ranges.append(trueState_1r[0][ind.astype(int)])
-    index_ranges = np.asarray(index_ranges).reshape(1,-1)
-    return index_ranges
-def calc_array_trueState_1r(ambState,trueState,checkVal):
-    test_amb = ambState == checkVal
-    test_shape_sum = np.zeros((1,N_test-wLen))
-    test_shape = np.zeros((dLen,N_test-wLen))
-
-    test_list = []
-    for g in np.arange(test_amb.shape[1]):
-        test_shape[:,g] = trueState[:,g]
-    for r in np.arange(test_shape.shape[1]):
-        test_shape_sum[0][r] = np.sum(test_shape[:,r]).astype(int)
-        if test_shape_sum[0][r] > 0:
-            test_list.append(True)
-        else:
-            test_list.append(False)
-    test_list = np.asarray(test_list).reshape(1,-1)
-    return test_list
+        for g in np.arange(len(index_range)):
+            ind = index_range[g]
+            index_ranges.append(trueState_1r[0][ind])
+    
+        index_ranges = np.asarray(index_ranges).reshape(1,-1)
+        return index_ranges
+    
+    def calc_array_trueState_1r(self,ambState,trueState,checkVal,numberOfSamples):
+        test_amb = ambState == checkVal
+        dLen = 100
+        wLen = 5*dLen
+        N_test = dLen*numberOfSamples//2;
+        test_shape = np.zeros((dLen,N_test-wLen))
+    
+        trueState_list = []
+        for g in np.arange(test_amb.shape[1]):
+            test_shape[:,g] = trueState[:,g]
+        for r in np.arange(test_shape.shape[1]):
+            trueState_sum = np.sum(test_shape[:,r]).astype(int)
+            if trueState_sum > 0:
+                trueState_list.append(1)
+            else:
+                trueState_list.append(0)
+        trueState_list = np.asarray(trueState_list).reshape(1,-1)
+        return trueState_list
 pi = m.pi
 
 powerLvl = -40 #power in dBm

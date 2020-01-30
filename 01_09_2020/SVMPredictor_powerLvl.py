@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.svm as svm
 import pandas as pd
-from ARP import ARPSimulator as arp
+from ARP_Simulator import ARPSimulator as arp
 import csv
 from sklearn.metrics import mean_squared_error
 import pickle
@@ -80,16 +80,10 @@ class SVMPredictor:
         fSteps = dLen; #tracks number of future steps to predict
 
         predicted = np.zeros((fSteps, N_test-wLen));
-#        filename="models/linearsvr_155kitr_5000s_lambda9_v2.sav"
-#        pickleDmp = open(filename,'wb')
-#        pickle.dump(clf,pickleDmp)
 
         for i in np.arange(0,sample_len):
             predicted[i] = clf.predict(nData.transpose());
             nData = np.concatenate((testData[1:wLen:,],predicted[i:i+1,:]));
-            #nData = np.concatenate((predicted[i:i+1,:],testData[1:wLen:,]));
-            #nData = np.concatenate((testData[i+1:wLen:,],predicted[0:i+1,:]));
-            #nData = np.concatenate((predicted[0:i+1,:],testData[i+1:wLen:,]));
 
         predSet = np.zeros((fSteps, N_test-wLen));
         setCnt = 0;
@@ -265,40 +259,19 @@ for power in powerLvlList:
     scale = StandardScaler(with_mean=False)
     norm = Normalizer(norm='l2')
     norm_cumulants = Normalizer(norm='l2')
-    
-#    totalPwrLvl_norm = norm.fit_transform(totalPwrLvl)
-    #totalPwrLvl_cumulants = norm_cumulants.fit_transform(totalPwrLvl_cumulants)
+
     totalPwrLvl_scale = norm.fit_transform(totalPwrLvl)
     
-#    prediction_norm = svmp.predictor(numberOfSamples,totalPwrLvl_norm,iters)
-    #prediction = svmp.predictor(numberOfSamples,totalPwrLvl)
     prediction_scale = svmp.predictor(numberOfSamples,totalPwrLvl_scale)
     prediction_cumulants = svmp.predictor(numberOfSamples,totalPwrLvl_cumulants)
     
     accuracy_scale = svmp.calculateAccuracy(prediction_scale[1,:], totalPwrLvl_scale, numberOfSamples)
-    #accuracy = svmp.calculateAccuracy(prediction[1,:], totalPwrLvl, numberOfSamples)
-#    accuracy_norm = svmp.calculateAccuracy(prediction_norm[1,:], totalPwrLvl_norm, numberOfSamples)
+
     accuracy_cumulants = svmp.calculateAccuracy(prediction_cumulants[1,:], totalPwrLvl_cumulants, numberOfSamples)
-#    for i in np.arange(0,sample_len):
-#        score = prediction_norm[i,:]
-#        accuracy = svmp.calculateAccuracy(score, totalPwrLvl_norm, numberOfSamples)
-#        print("Error Rate: Total Average Power",numberOfSamples,accuracy);
-#    print('   -----------------------        ')
-#    for j in np.arange(0,sample_len):
-#        score_cumulants = prediction_cumulants[j,:]
-#        accuracy_cumulants = svmp.calculateAccuracy(score_cumulants, totalPwrLvl_cumulants, numberOfSamples)
-#        print("Error Rate: Cumulants",numberOfSamples,accuracy_cumulants);  
-#    print('------------------------------------------------------------------')
-#    error_scoreList.append(accuracy)
-#    error_scoreList_norm.append(accuracy_norm)
-#    error_scoreList_cum.append(accuracy_cumulants)
-#    error_score_lambda_norm.append(accuracy_norm)
+
     error_score_lambda_scale.append(accuracy_scale)
     error_score_lambda_cum.append(accuracy_cumulants)
-        #svmp.plotSVM(totalPwrLvl,prediction,numberOfSamples)
-        #svmp.plotSVM(totalPwrLvl_norm,prediction_norm,numberOfSamples)
-        #svmp.plotSVM(totalPwrLvl_cumulants,prediction_cumulants,numberOfSamples)
-#svmp.plotByPowerLevel(powerLvlList,error_scoreList_norm,error_scoreList_cum)
+
 svmp.plotByPowerLevel(powerLvlList,error_score_lambda_scale,error_score_lambda_cum,"powerLvl")
 
 

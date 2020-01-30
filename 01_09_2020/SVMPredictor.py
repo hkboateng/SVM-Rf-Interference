@@ -9,9 +9,7 @@ import matplotlib.pyplot as plt
 import sklearn.svm as svm
 import pandas as pd
 import csv
-from sklearn.metrics import mean_squared_error
 import pickle
-from sklearn.preprocessing import Normalizer,StandardScaler
 
 class SVM_Predictor:
         def generateTestDataSet(self,start,end,dataSource,testData,trainData):
@@ -59,9 +57,9 @@ class SVM_Predictor:
     
             label_reshape = trainLbl.reshape((N_train-wLen))
             train_reshape = trainData.transpose()    
-            #model = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=350).fit(train_reshape,label_reshape)
+            model = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=250).fit(train_reshape,label_reshape)
             filename="Models/linearsvr_500itr_5000s_lambda99_cumulants_v1.sav"
-            model = pickle.load(open(filename,'rb'));
+            #model = pickle.load(open(filename,'rb'));
             fSteps = dLen; #tracks number of future steps to predict
     
             predicted = np.zeros((fSteps, N_test-wLen));
@@ -146,13 +144,17 @@ class SVM_Predictor:
                 prediction_score = 10*np.log10(np.abs(score))-30
                 plt.plot(subplot_range,prediction_score)
                 plt.legend(['Input Signal','Prediction'])
+                plt.title('One-step ahead prediction')
+                plt.ylabel('Magnitude (dBm)')
             else:
-                plt.legend(['Input Signal'])
-            plt.plot(subplot_range,thresh_score)  
-            plt.title('One-step ahead prediction')
+                plt.plot(subplot_range,thresh_score)  
+                plt.legend(['Input Signal','Threshold'])
+                plt.title('Simulated RF Input')
+                plt.ylabel('Total Average Power (dBM)')
+            
             plt.xlabel('Samples')
-            plt.ylabel('Magnitude (dBm)')
             plt.show()
+            plt.savefig("simulated_totalaverage_01_28_2020.png")
         
         def saveARPData(self,fileName, data):
             with open(fileName, 'w') as arp_dataset:

@@ -15,10 +15,10 @@ class ARP_Simulator:
         counter = 0;
         shape1=obj1.shape[1]
         for i in np.arange(shape1):
-            #print(obj1[0][i].astype(int)== obj2[0][i].astype(int))
             if obj1[0][i] == obj2[0][i]:
                 counter = counter + 1
         return counter
+    
     def calc_array_obj_test(self,ambstate, trueState_1r,checkVal):
         index_range = []
         test_ambState = ambstate == checkVal
@@ -135,22 +135,7 @@ class ARP_Simulator:
                 seqState = 1
                 
             totalTime += period
-            
-#        seqSize = len(stateTrans) #total number of on and off states
-#        traffic_intensity = sum(occupancy)/N #measures traffic intensity
-#        #measures mean signal interarrival
-#        mean_int = sum(intTimes[0:seqSize-(seqSize%2)]) / ((seqSize-(seqSize%2))/2) 
-#        actual_int = 1/lambda1+1/lambda2 #calculates theoretical interarrival
-#        
-#        #reactive predictor "accuracy/error"
-#        predicted = occupancy[0:N-1]
-#        #theoretical accuracy based on lambda parameters
-#        theoAcc = 1-(2/actual_int-1/N)
-#        #accuracy based on measured mean interarrival
-#        expAcc = 1-(2/mean_int-1/N)
-#        #observed accuracy
-#        obsAcc = sum([predicted[i]==occupancy[i+1] for i in range(N-1)]) / (N-1)
-        
+
         
         ###input RF signal generation###
         dLen = 100 #length of the energy detector
