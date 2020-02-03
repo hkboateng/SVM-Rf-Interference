@@ -53,6 +53,7 @@ class ARP_Simulator:
         trueState_list = np.asarray(trueState_list).reshape(1,-1)
         return trueState_list
     def arpSimulatorGenerator(self,lambda1,lambda2,noOfSamples,powerLvl,isCumulants):
+        print("Power Lvl",powerLvl, "Lambda 1",lambda1,"Lambda 2",lambda2)
         pi = m.pi
         N = noOfSamples
         dLen = 100
