@@ -9,7 +9,7 @@ from scipy import stats
 
 class ARP_Simulator:
     def __init__(self):
-        print("Starting")
+        pass#print("Starting")
         
     def countReturns(self,obj1,obj2):
         counter = 0;
@@ -52,8 +52,11 @@ class ARP_Simulator:
                 trueState_list.append(0)
         trueState_list = np.asarray(trueState_list).reshape(1,-1)
         return trueState_list
-    def arpSimulatorGenerator(self,lambda1,lambda2,noOfSamples,powerLvl,isCumulants):
-        print("Power Lvl",powerLvl, "Lambda 1",lambda1,"Lambda 2",lambda2)
+
+    def arpSimulatorGenerator(self,lambda1,lambda2,powerLvl):
+        noOfSamples = 1000
+        isCumulants = False
+
         pi = m.pi
         N = noOfSamples
         dLen = 100
@@ -175,68 +178,68 @@ class ARP_Simulator:
 
         dAcc = np.sum(obsState[0:dLen*N-dLen+1]==occSwitch[0:dLen*N-dLen+1])/(dLen*N-dLen+1);
 
-        inputPwr = np.reshape(totalAvgPwr,(1,-1))
-        
-        svmp = SVMPredictor()
-        if isCumulants:
-            prediction = svmp.predictor_cumulant(numberOfSamples,inputPwr)
-            threshold = 1 * thresh_cumulants            
-        else:
-            prediction = svmp.predictor(numberOfSamples,inputPwr)
-            threshold = 1 * thresh            
-        #svmp.plotSVM(inputPwr,prediction,numberOfSamples,thresh,True)
-        
-        score = prediction[1,:]
-
-        numberOfSamplesLen = numberOfSamples*dLen
-        predState_lstep = score > threshold
-        
-        predPwrStates = pwrStates[:,wLen+N_train:N]
-
-        predPwrStates = predPwrStates.astype(int)
-        occSwitch = np.reshape(occSwitch,(1,-1))
-        
-        
-        trueState = np.zeros((dLen,numberOfSamplesLen))
-        for v in np.arange(N_test-wLen):
-            for c in np.arange(dLen):
-                trueState.itemset((c,v),occSwitch[0,predPwrStates[c][v].astype(int)])  
-        
-        UA_cnt = 0;
-        predAcc_UA = 0;
-        
-        trueState = trueState[:,0:N_test-wLen]
-        
-        ambState = np.zeros((N_test-wLen))
-        
-        for i in np.arange(N_test-wLen):
-            if np.sum(trueState[:,i] == np.ones((dLen,1))) == 5:
-                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[1,i]);
-                UA_cnt = UA_cnt+1
-            elif np.sum(trueState[:,i] == np.zeros((dLen,1))) == 5:
-                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[1,i]);
-                UA_cnt = UA_cnt+1
-            else:
-                ambState[i] = 1
-                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[:,i]);
-                UA_cnt = UA_cnt+1;  
-        predState_lstep  = np.reshape(predState_lstep,(1,-1))
-        
-        ambState  = np.reshape(ambState,(1,-1))
-        
-        trueState_1r = np.reshape(trueState[1,:],(1,-1))
-        arp_simulator = ARP_Simulator()
-        rSize_1 =  arp_simulator.calc_array_obj_test(ambState,predState_lstep,1)
-        rSize_2 = arp_simulator.calc_array_trueState_1r(ambState,trueState,1,noOfSamples)
-        
-        countReturns = arp_simulator.countReturns(rSize_1,rSize_2)
-        
-        cal_predStep_0 = arp_simulator.calc_array_obj_test(ambState,predState_lstep,0)
-        cal_trueState_1r_0 = arp_simulator.calc_array_obj_test(ambState,trueState_1r,0)
-        
-        cal_predStep_sum = np.sum(cal_predStep_0)
-        cal_trueState_1r_sum = np.sum(cal_trueState_1r_0)
-
-        lSize = cal_predStep_sum +cal_trueState_1r_sum
-        prec_accuracy = (countReturns+lSize)/(N_test-wLen)
-        return dAcc,prec_accuracy,snr
+#        inputPwr = np.reshape(totalAvgPwr,(1,-1))
+#        
+#        svmp = SVMPredictor()
+#        if isCumulants:
+#            prediction = svmp.predictor_cumulant(numberOfSamples,inputPwr)
+#            threshold = 1 * thresh_cumulants            
+#        else:
+#            prediction = svmp.predictor(numberOfSamples,inputPwr)
+#            threshold = 1 * thresh            
+#        #svmp.plotSVM(inputPwr,prediction,numberOfSamples,thresh,True)
+#        
+#        score = prediction[1,:]
+#
+#        numberOfSamplesLen = numberOfSamples*dLen
+#        predState_lstep = score > threshold
+#        
+#        predPwrStates = pwrStates[:,wLen+N_train:N]
+#
+#        predPwrStates = predPwrStates.astype(int)
+#        occSwitch = np.reshape(occSwitch,(1,-1))
+#        
+#        
+#        trueState = np.zeros((dLen,numberOfSamplesLen))
+#        for v in np.arange(N_test-wLen):
+#            for c in np.arange(dLen):
+#                trueState.itemset((c,v),occSwitch[0,predPwrStates[c][v].astype(int)])  
+#        
+#        UA_cnt = 0;
+#        predAcc_UA = 0;
+#        
+#        trueState = trueState[:,0:N_test-wLen]
+#        
+#        ambState = np.zeros((N_test-wLen))
+#        
+#        for i in np.arange(N_test-wLen):
+#            if np.sum(trueState[:,i] == np.ones((dLen,1))) == 5:
+#                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[1,i]);
+#                UA_cnt = UA_cnt+1
+#            elif np.sum(trueState[:,i] == np.zeros((dLen,1))) == 5:
+#                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[1,i]);
+#                UA_cnt = UA_cnt+1
+#            else:
+#                ambState[i] = 1
+#                predAcc_UA = predAcc_UA + (predState_lstep[i] == trueState[:,i]);
+#                UA_cnt = UA_cnt+1;  
+#        predState_lstep  = np.reshape(predState_lstep,(1,-1))
+#        
+#        ambState  = np.reshape(ambState,(1,-1))
+#        
+#        trueState_1r = np.reshape(trueState[1,:],(1,-1))
+#        arp_simulator = ARP_Simulator()
+#        rSize_1 =  arp_simulator.calc_array_obj_test(ambState,predState_lstep,1)
+#        rSize_2 = arp_simulator.calc_array_trueState_1r(ambState,trueState,1,noOfSamples)
+#        
+#        countReturns = arp_simulator.countReturns(rSize_1,rSize_2)
+#        
+#        cal_predStep_0 = arp_simulator.calc_array_obj_test(ambState,predState_lstep,0)
+#        cal_trueState_1r_0 = arp_simulator.calc_array_obj_test(ambState,trueState_1r,0)
+#        
+#        cal_predStep_sum = np.sum(cal_predStep_0)
+#        cal_trueState_1r_sum = np.sum(cal_trueState_1r_0)
+#
+#        lSize = cal_predStep_sum +cal_trueState_1r_sum
+#        prec_accuracy = (countReturns+lSize)/(N_test-wLen)
+        return dAcc,0,snr

@@ -9,7 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.svm as svm
 import pandas as pd
-from ARP_Simulator import ARPSimulator as arp
+
+#from ARP_Simulator import ARPSimulator as arp
+
+from ARP_simulator import ARP_Simulator
+
 import csv
 from sklearn.metrics import mean_squared_error
 import pickle
@@ -139,8 +143,9 @@ class SVMPredictor:
         plt.ylabel('Magnitude (dBm)')
         plt.show()
 
-    def generatereqByLambda(self,lambda1, lambda2,numberOfSamples):
-        lambda_range=0.01
+    def generatereqByLambda(self,lambda1, lambda2,numberOfSamples,isCumulant=False):
+        #print("Lambda 1",lambda1,"Lambda 2",lambda2, "Sample Size",numberOfSamples)
+        lambda_range=0.05
         lambda_length = len(np.arange(lambda_range,lambda1,lambda_range)) # Get the length of the lambda range
         color_range = np.zeros(lambda_length*lambda_length)
 
@@ -149,29 +154,23 @@ class SVMPredictor:
         x_range=np.zeros(lambda_length*lambda_length)
         y_range=np.zeros(lambda_length*lambda_length)
         
-        fig = plt.figure(figsize=(30,30))
-
+        fig = plt.figure()
+        arp = ARP_Simulator()
         for i in np.arange(lambda_range,lambda1,lambda_range):
-            for j in np.arange(lambda_range,lambda2, lambda_range):
-                
-                totalPwrLvl = arp.generateFreqEnergy(arp,i,j,numberOfSamples)
-                powerData = pd.DataFrame(np.array(totalPwrLvl).reshape(-1,1),totalPwrLvl)
-                powerData = powerData[powerData.columns[0:]].values
-                powerLvlLambda = powerData.transpose()
-                
-                prediction = svmp.predictor(numberOfSamples,powerLvlLambda)
-                
-                score = prediction[1,:]
-                accuracy = svmp.calculateAccuracy(score, powerLvlLambda, numberOfSamples)
+            for j in np.arange(lambda_range,lambda2, lambda_range):                
+                acc,prec_accuracy,snr = arp.arpSimulatorGenerator(i,j,-40)
 
-                color_range.itemset(a,accuracy/100)
+                color_range.itemset(a,acc)
                 x_range.itemset(a,i);
                 y_range.itemset(a,j);
                 a=a+1;
-
-        plt.scatter(x_range,y_range,c=color_range, s=accuracy*10,alpha=0.55)
+        plt.xlabel('Samples')
+        plt.ylabel('Magnitude (dBm)')
+        plt.title('Simulated Prediction Accuracy')
+        plt.scatter(x_range,y_range,c=color_range, s=acc*10000,alpha=0.95,edgecolors='None')
         plt.colorbar()
-        fig.savefig("lambda0.99range0.01_300samples.png")
+        fig.savefig("lambda0.99range0.1_1000samples_02_09_2020.jpeg")
+        fig.savefig("lambda0.99range0.1_1000samples_02_09_2020.png")
         return 0;
     
     def saveARPData(self,fileName, data):
@@ -244,34 +243,60 @@ error_score_lambda_norm = []
 error_score_lambda_cum = []
 error_score_lambda_scale = []
 numberOfSamples= 1000
-lambda1 = 0.8;
-lambda2 = 0.8;
-for power in powerLvlList:
-    svmp = SVMPredictor()
-   
-    totalPwrLvl,totalPwrLvl_cumulants = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples,power)
-    svmp.saveARPData(fileName,totalPwrLvl)
-    totalPwrLvl = svmp.load_data(fileName)
-    
-    svmp.saveARPData(fileName_cumulants,totalPwrLvl_cumulants)
-    totalPwrLvl_cumulants = svmp.load_data(fileName_cumulants)    
-    
-    scale = StandardScaler(with_mean=False)
-    norm = Normalizer(norm='l2')
-    norm_cumulants = Normalizer(norm='l2')
 
-    totalPwrLvl_scale = norm.fit_transform(totalPwrLvl)
-    
-    prediction_scale = svmp.predictor(numberOfSamples,totalPwrLvl_scale)
-    prediction_cumulants = svmp.predictor(numberOfSamples,totalPwrLvl_cumulants)
-    
-    accuracy_scale = svmp.calculateAccuracy(prediction_scale[1,:], totalPwrLvl_scale, numberOfSamples)
+lambda1 = 1;
+lambda2 = 1;
+svmp = SVMPredictor()
+svmp.generatereqByLambda(lambda1,lambda2,numberOfSamples,False)
+#for power in powerLvlList:
+#    svmp = SVMPredictor()
+#    arp = None
+#    arp = ARP_Simulator()   
+#    totalPwrLvl,totalPwrLvl_cumulants = arp.generateFreqEnergy(arp,lambda1,lambda2,numberOfSamples,power)
+#    svmp.saveARPData(fileName,totalPwrLvl)
+#    totalPwrLvl = svmp.load_data(fileName)
+#    
+#    svmp.saveARPData(fileName_cumulants,totalPwrLvl_cumulants)
+#    totalPwrLvl_cumulants = svmp.load_data(fileName_cumulants)    
+#    
+#    scale = StandardScaler(with_mean=False)
+#    norm = Normalizer(norm='l2')
+#    norm_cumulants = Normalizer(norm='l2')
+#    
+##    totalPwrLvl_norm = norm.fit_transform(totalPwrLvl)
+#    #totalPwrLvl_cumulants = norm_cumulants.fit_transform(totalPwrLvl_cumulants)
+#    totalPwrLvl_scale = norm.fit_transform(totalPwrLvl)
+#    
+##    prediction_norm = svmp.predictor(numberOfSamples,totalPwrLvl_norm,iters)
+#    #prediction = svmp.predictor(numberOfSamples,totalPwrLvl)
+#    prediction_scale = svmp.predictor(numberOfSamples,totalPwrLvl_scale)
+#    prediction_cumulants = svmp.predictor(numberOfSamples,totalPwrLvl_cumulants)
+#    
+#    accuracy_scale = svmp.calculateAccuracy(prediction_scale[1,:], totalPwrLvl_scale, numberOfSamples)
+#    #accuracy = svmp.calculateAccuracy(prediction[1,:], totalPwrLvl, numberOfSamples)
+##    accuracy_norm = svmp.calculateAccuracy(prediction_norm[1,:], totalPwrLvl_norm, numberOfSamples)
+#    accuracy_cumulants = svmp.calculateAccuracy(prediction_cumulants[1,:], totalPwrLvl_cumulants, numberOfSamples)
+##    for i in np.arange(0,sample_len):
+##        score = prediction_norm[i,:]
+##        accuracy = svmp.calculateAccuracy(score, totalPwrLvl_norm, numberOfSamples)
+##        print("Error Rate: Total Average Power",numberOfSamples,accuracy);
+##    print('   -----------------------        ')
+##    for j in np.arange(0,sample_len):
+##        score_cumulants = prediction_cumulants[j,:]
+##        accuracy_cumulants = svmp.calculateAccuracy(score_cumulants, totalPwrLvl_cumulants, numberOfSamples)
+##        print("Error Rate: Cumulants",numberOfSamples,accuracy_cumulants);  
+##    print('------------------------------------------------------------------')
+##    error_scoreList.append(accuracy)
+##    error_scoreList_norm.append(accuracy_norm)
+##    error_scoreList_cum.append(accuracy_cumulants)
+##    error_score_lambda_norm.append(accuracy_norm)
+#    error_score_lambda_scale.append(accuracy_scale)
+#    error_score_lambda_cum.append(accuracy_cumulants)
+#        #svmp.plotSVM(totalPwrLvl,prediction,numberOfSamples)
+#        #svmp.plotSVM(totalPwrLvl_norm,prediction_norm,numberOfSamples)
+#        #svmp.plotSVM(totalPwrLvl_cumulants,prediction_cumulants,numberOfSamples)
+##svmp.plotByPowerLevel(powerLvlList,error_scoreList_norm,error_scoreList_cum)
+#svmp.plotByPowerLevel(powerLvlList,error_score_lambda_scale,error_score_lambda_cum,"powerLvl")
 
-    accuracy_cumulants = svmp.calculateAccuracy(prediction_cumulants[1,:], totalPwrLvl_cumulants, numberOfSamples)
-
-    error_score_lambda_scale.append(accuracy_scale)
-    error_score_lambda_cum.append(accuracy_cumulants)
-
-svmp.plotByPowerLevel(powerLvlList,error_score_lambda_scale,error_score_lambda_cum,"powerLvl")
 
 

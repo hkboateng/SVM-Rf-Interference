@@ -57,14 +57,16 @@ class SVM_Predictor:
     
             label_reshape = trainLbl.reshape((N_train-wLen))
             train_reshape = trainData.transpose()    
+
             #model = svm.LinearSVR(epsilon=10e-9, C=10e6,verbose=6,random_state=0,loss='squared_epsilon_insensitive',tol=10e-6,max_iter=250).fit(train_reshape,label_reshape)
+
             filename="Models/linearsvr_500itr_5000s_lambda99_cumulants_v1.sav"
             model = pickle.load(open(filename,'rb'));
             fSteps = dLen; #tracks number of future steps to predict
     
             predicted = np.zeros((fSteps, N_test-wLen));
 
-            for i in np.arange(0,5):
+            for i in np.arange(0,3):
                 predicted[i] = model.predict(nData.transpose());
                 nData = np.concatenate((testData[i+1:wLen:,],predicted[0:i+1,:]));
     
