@@ -110,7 +110,7 @@ class SVM_Predictor:
             fSteps = dLen; #tracks number of future steps to predict
     
             predicted = np.zeros((fSteps, N_test-wLen));
-            filename="Models/linearsvr_95kitr_1000s_lambda99.sav"
+            filename="Models/linearsvr_100kitr_3000s_lambda99_v1.sav"
             model = pickle.load(open(filename,'rb'));
             
             for i in np.arange(0,5):
